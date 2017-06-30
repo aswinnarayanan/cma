@@ -44,6 +44,8 @@ def get_args(args):
     parser.add_argument('--bet', help='bet/bet2/auto, default auto',
                         default='auto')
     parser.add_argument('--maxval', help='max val, default 300', default=300.0)
+    parser.add_argument('--plot', help='True/False. Plotting requires '
+                                       'interactive session', default=True)
     myargs = parser.parse_args(args)
     return myargs
 
@@ -112,20 +114,6 @@ def main():
 
     x = contrast2_unique_rescaled_fl64
     y = final_val_match
-    plt.plot(x, y, '.')
-
-    # creating the spline and adjusting the amount of smoothing
-    spl = UnivariateSpline(x, y)
-    spl.set_smoothing_factor(400)
-
-    x_converted = spl(x)
-    # plt.plot(x, x_converted, 'g', lw=1)
-    plt.xlabel('Intensity values of contrast 2')
-    plt.ylabel('Intensity values of contrast 1')
-
-    intensity_plot = source_mnc.with_name(source_mnc.stem + '_intensity.png')
-    plt.savefig(str(intensity_plot))
-    step('Spline fit. Saved to', intensity_plot)
 
     firstLutColumn = x
     secondLutColumn = x_converted
@@ -135,7 +123,8 @@ def main():
     secondLutColumn = rescale(secondLutColumn, 0, 1)
 
     # saving lookup table (lut) as .txt
-    lut = open(str(tmpdir / 'lookuptable.txt'), "w")
+    lookuptable = tmpdir / (source_mnc.stem + '_lookup.txt')
+    lut = open(str(lookuptable), "w")
     for j in range(len(firstLutColumn)):
         firstLutColumn_str = str(firstLutColumn[j])
         secondLutColumn_str = str(secondLutColumn[j])
@@ -146,8 +135,26 @@ def main():
     source_lookup_mnc = source_mnc.with_name(source_mnc.stem + '_lookup.mnc')
 
     do_cmd('minclookup', '-continuous', '-lookup_table',
-           tmpdir/'lookuptable.txt', source_mnc, source_lookup_mnc, '-2')
+           lookuptable , source_mnc, source_lookup_mnc, '-2')
+    if myargs.plot:
+        plot_contrasts(x, y, source_mnc)
     print('=' * 79)
+
+
+def plot_contrasts(x, y, source):
+    plt.plot(x, y, '.')
+    # creating the spline and adjusting the amount of smoothing
+    spl = UnivariateSpline(x, y)
+    spl.set_smoothing_factor(400)
+
+    x_converted = spl(x)
+    plt.plot(x, x_converted, 'g', lw=1)
+    plt.xlabel('Intensity values of contrast 2')
+    plt.ylabel('Intensity values of contrast 1')
+
+    intensity_plot = source.with_name(source.stem + '_intensity.png')
+    plt.savefig(str(intensity_plot))
+    step('Spline fit. Saved to', intensity_plot)
 
 
 def get_dimension(img):
